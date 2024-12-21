@@ -2,9 +2,13 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const TelegramBot = require('node-telegram-bot-api');
 
-const token = process.env.TELEGRAM_BOT_TOKEN; // Убедитесь, что этот токен установлен в переменной окружения
+// Обновлять для последующих ботов START
+const token = process.env.TELEGRAM_BOT_TOKEN;
+const botNumber = 1;
+// Обновлять для последующих ботов END
+
 const app = express();
-const webhookUrl = `https://psycho-quiz-telegram.onrender.com/bot${token}`;
+const webhookUrl = `https://psycho-quiz-telegram.onrender.com/bot${botNumber}/${token}`;
 
 // const webhookUrl = `https://${process.env.RENDER_EXTERNAL_URL}/bot${token}`;
 const PORT = process.env.PORT || 3000;
@@ -15,7 +19,7 @@ bot.setWebHook(webhookUrl);
 
 // Middleware для обработки запросов Telegram
 app.use(bodyParser.json());
-app.post(`/bot${token}`, (req, res) => {
+app.post(`/bot${botNumber}/${token}`, (req, res) => {
     bot.processUpdate(req.body);
     res.sendStatus(200);
 });

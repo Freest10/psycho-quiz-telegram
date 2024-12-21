@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A simple Telegram bot that responds with 'hello' to every message.",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "node index.js"
   },
