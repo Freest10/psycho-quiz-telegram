@@ -1,30 +1,28 @@
-const TelegramBot = require('node-telegram-bot-api');
 const express = require('express');
 const bodyParser = require('body-parser');
+const TelegramBot = require('node-telegram-bot-api');
 
-// Токен вашего Telegram бота
-const token = '7570571444:AAGt7rbHjAReG0JMksxnGs_UZuOSDyxhlB0';
-
-const bot = new TelegramBot(token, { webHook: true });
-
+const token = process.env.TELEGRAM_BOT_TOKEN; // Убедитесь, что этот токен установлен в переменной окружения
 const app = express();
-app.use(bodyParser.json());
 
-// Устанавливаем Webhook URL
 const webhookUrl = `https://${process.env.RENDER_EXTERNAL_URL}/bot${token}`;
+const PORT = process.env.PORT || 3000;
+
+// Настройка бота
+const bot = new TelegramBot(token, { webHook: true });
 bot.setWebHook(webhookUrl);
 
-// Обработка запросов Telegram через Webhook
+// Middleware для обработки запросов Telegram
+app.use(bodyParser.json());
 app.post(`/bot${token}`, (req, res) => {
     bot.processUpdate(req.body);
     res.sendStatus(200);
 });
 
-const PORT = process.env.PORT || 3000;
+// Запуск сервера
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-
 
 // Переменная для хранения состояния пользователей
 const userState = new Map();
