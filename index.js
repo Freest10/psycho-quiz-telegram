@@ -2,10 +2,9 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const TelegramBot = require('node-telegram-bot-api');
 
-// Обновлять для последующих ботов START
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const botNumber = 1;
-// Обновлять для последующих ботов END
+const botNumber = 2; // Увеличивать на 1 для последующих ботов
+
 
 const app = express();
 const webhookUrl = `https://psycho-quiz-telegram.onrender.com/bot${botNumber}/${token}`;
@@ -82,9 +81,7 @@ function sendStartTestButton(chatId) {
     };
 
     bot.sendMessage(chatId,
-  "Пройдите тест «Проживаю ли я свою жизнь?», чтобы глубже понять, насколько осознанно вы живёте свою жизнь, соответствуете ли своим целям и ценностям.\n" +
-  "Ваши ответы помогут выявить сильные стороны и области для личного роста, а также направят вас на путь к более гармоничной и удовлетворённой жизни.\n\n" +
-  "*Готовы начать? Нажмите «Начать» и сделайте первый шаг к самопознанию!*",
+  "Это саппорт бот",
   { parse_mode: 'Markdown', ...options }
 );
 }
