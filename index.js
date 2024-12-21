@@ -153,7 +153,7 @@ function calculateResult(chatId, answers) {
         bot.sendMessage(chatId, "Хотите узнать, как можно сделать свою жизнь ещё лучше? Нажмите на кнопку ниже, чтобы получить дополнительную информацию!", {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: "Посмотреть видео", url: "https://www.youtube.com/your-channel" }],
+                    [{ text: "Посмотреть видео", url: "https://youtu.be/jMCJSSDkujA?si=wzjbz6CzYoHajfl1" }],
                 ]
             }
         });
