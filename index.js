@@ -1,11 +1,30 @@
-// Импорт необходимых библиотек
 const TelegramBot = require('node-telegram-bot-api');
+const express = require('express');
+const bodyParser = require('body-parser');
 
 // Токен вашего Telegram бота
 const token = '7570571444:AAGt7rbHjAReG0JMksxnGs_UZuOSDyxhlB0';
 
-// Инициализация бота
-const bot = new TelegramBot(token, { polling: true });
+const bot = new TelegramBot(token, { webHook: true });
+
+const app = express();
+app.use(bodyParser.json());
+
+// Устанавливаем Webhook URL
+const webhookUrl = `https://${process.env.RENDER_EXTERNAL_URL}/bot${token}`;
+bot.setWebHook(webhookUrl);
+
+// Обработка запросов Telegram через Webhook
+app.post(`/bot${token}`, (req, res) => {
+    bot.processUpdate(req.body);
+    res.sendStatus(200);
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
+
 
 // Переменная для хранения состояния пользователей
 const userState = new Map();
@@ -59,7 +78,7 @@ function sendStartTestButton(chatId) {
         })
     };
 
-    bot.sendMessage(chatId, 
+    bot.sendMessage(chatId,
   "Пройдите тест «Проживаю ли я свою жизнь?», чтобы глубже понять, насколько осознанно вы живёте свою жизнь, соответствуете ли своим целям и ценностям.\n" +
   "Ваши ответы помогут выявить сильные стороны и области для личного роста, а также направят вас на путь к более гармоничной и удовлетворённой жизни.\n\n" +
   "**Готовы начать? Нажмите «Начать» и сделайте первый шаг к самопознанию!**",
