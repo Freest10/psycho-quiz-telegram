@@ -59,7 +59,12 @@ function sendStartTestButton(chatId) {
         })
     };
 
-    bot.sendMessage(chatId, "Добро пожаловать! Нажмите кнопку ниже, чтобы начать тест.", options);
+    bot.sendMessage(chatId, 
+  "Пройдите тест «Проживаю ли я свою жизнь?», чтобы глубже понять, насколько осознанно вы живёте свою жизнь, соответствуете ли своим целям и ценностям.\n" +
+  "Ваши ответы помогут выявить сильные стороны и области для личного роста, а также направят вас на путь к более гармоничной и удовлетворённой жизни.\n\n" +
+  "**Готовы начать? Нажмите «Начать» и сделайте первый шаг к самопознанию!**",
+  { parse_mode: 'Markdown', ...options }
+);
 }
 
 // Обработка начала теста по кнопке
@@ -69,7 +74,7 @@ bot.on('callback_query', (callbackQuery) => {
 
     if (data === 'start_test') {
         userState.set(chatId, { currentQuestion: 0, answers: [] });
-        bot.sendMessage(chatId, "Тест \"Проживаю ли я свою жизнь?\"\nОтвечайте на вопросы, нажимая кнопки \"✅ Да\" или \"❌ Нет\".");
+        bot.sendMessage(chatId, "Тест \"Проживаю ли я свою жизнь?\"\nОтвечайте на вопросы, нажимая кнопки \"Да\" или \"Нет\".");
         askNextQuestion(chatId);
     } else {
         const state = userState.get(chatId);
@@ -99,8 +104,8 @@ function askNextQuestion(chatId) {
         reply_markup: JSON.stringify({
             inline_keyboard: [
                 [
-                    { text: '✅ Да', callback_data: 'yes' },
-                    { text: '❌ Нет', callback_data: 'no' }
+                    { text: 'Да', callback_data: 'yes' },
+                    { text: 'Нет', callback_data: 'no' }
                 ]
             ]
         })
@@ -124,5 +129,16 @@ function calculateResult(chatId, answers) {
         result = "Вы, возможно, живёте чужими ожиданиями и упускаете возможность реализовать себя.";
     }
 
-    bot.sendMessage(chatId, `Тест завершён!\n${result}`);
+    bot.sendMessage(chatId, `Тест завершён!\n${result}`).then(() => {
+        // Отправляем дополнительное сообщение с кнопками
+        bot.sendMessage(chatId, "Хотите узнать, как можно сделать свою жизнь ещё лучше? Нажмите на кнопку ниже, чтобы получить дополнительную информацию!", {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: "Посмотреть видео", url: "https://www.youtube.com/your-channel" }],
+                ]
+            }
+        });
+    }).catch(err => {
+        console.error("Ошибка при отправке сообщений:", err);
+    });
 }
