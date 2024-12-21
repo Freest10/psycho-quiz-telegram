@@ -4,8 +4,9 @@ const TelegramBot = require('node-telegram-bot-api');
 
 const token = process.env.TELEGRAM_BOT_TOKEN; // Убедитесь, что этот токен установлен в переменной окружения
 const app = express();
+const webhookUrl = `https://psycho-quiz-telegram.onrender.com/bot${token}`;
 
-const webhookUrl = `https://${process.env.RENDER_EXTERNAL_URL}/bot${token}`;
+// const webhookUrl = `https://${process.env.RENDER_EXTERNAL_URL}/bot${token}`;
 const PORT = process.env.PORT || 3000;
 
 // Настройка бота
