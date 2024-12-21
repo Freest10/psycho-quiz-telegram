@@ -20,13 +20,13 @@ jobs:
       - run: npm install
 
       - name: Build project (if necessary)
+        if: ${{ fileExists('package.json') && contains(steps, '"build"') }}
         run: npm run build
-        if: fileExists('package.json') && contains(toJSON(steps), '"build"')
 
       - name: Deploy to Render
-        run: |\n
-          curl -X POST \\\n
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \\\n
-            -H "Content-Type: application/json" \\\n
-            -d '{ "clearCache": true }' \\\n
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{ "clearCache": true }' \
             https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys
