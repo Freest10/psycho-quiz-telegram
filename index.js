@@ -3,7 +3,7 @@ const bodyParser = require('body-parser');
 const TelegramBot = require('node-telegram-bot-api');
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const botNumber = 2; // Увеличивать на 1 для последующих ботов
+const botNumber = 1; // Увеличивать на 1 для последующих ботов
 
 
 const app = express();
