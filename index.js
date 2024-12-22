@@ -51,7 +51,6 @@ const questions = [
     "Вы ощущаете, что живёте именно так, как хотите?"
 ];
 
-
 // Обработка команды /start
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
