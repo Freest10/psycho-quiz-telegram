@@ -92,8 +92,9 @@ bot.on('callback_query', (callbackQuery) => {
 
     if (data === 'start_test') {
         userState.set(chatId, { currentQuestion: 0, answers: [] });
-        bot.sendMessage(chatId, "Тест \"Проживаю ли я свою жизнь?\"\nОтвечайте на вопросы, нажимая кнопки \"Да\" или \"Нет\".");
-        askNextQuestion(chatId);
+        bot.sendMessage(chatId, "Тест \"Проживаю ли я свою жизнь?\"\nОтвечайте на вопросы, нажимая кнопки \"Да\" или \"Нет\".").then(() => {
+            askNextQuestion(chatId);
+        });
     } else {
         const state = userState.get(chatId);
 
