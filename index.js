@@ -3,13 +3,11 @@ const bodyParser = require('body-parser');
 const TelegramBot = require('node-telegram-bot-api');
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const renderProjectUrl = 'https://psycho-quiz-telegram.onrender.com'; // Указать урл проекта на render
+const appUrl = process.env.APP_URL; // Указать URL приложения на Heroku
+const PORT = process.env.PORT || 3000;
 
 const app = express();
-const webhookUrl = `${renderProjectUrl}/bot/${token}`;
-
-// const webhookUrl = `https://${process.env.RENDER_EXTERNAL_URL}/bot${token}`;
-const PORT = process.env.PORT || 3000;
+const webhookUrl = `${appUrl}/bot${token}`;
 
 // Настройка бота
 const bot = new TelegramBot(token, { webHook: true });
@@ -17,7 +15,7 @@ bot.setWebHook(webhookUrl);
 
 // Middleware для обработки запросов Telegram
 app.use(bodyParser.json());
-app.post(`/bot/${token}`, (req, res) => {
+app.post(`/bot${token}`, (req, res) => {
     bot.processUpdate(req.body);
     res.sendStatus(200);
 });
@@ -48,7 +46,7 @@ const questions = [
     "Вы можете сказать, что живёте в настоящем моменте, а не в прошлом или будущем?",
     "Вы часто испытываете вдохновение и энтузиазм?",
     "Вы легко принимаете решения, которые идут вам на пользу?",
-    "Вы чувствуете, что контролируете свою жизнь, а не “плывёте по течению”?",
+    "Вы чувствуете, что контролируете свою жизнь, а не \u201cплывёте по течению\u201d?",
     "Вы не боитесь брать ответственность за свою жизнь?",
     "Вы ощущаете, что живёте именно так, как хотите?"
 ];
@@ -80,9 +78,9 @@ function sendStartTestButton(chatId) {
     };
 
     bot.sendMessage(chatId,
-        "Пройдите тест «Проживаю ли я свою жизнь?», чтобы глубже понять, насколько осознанно вы живёте свою жизнь, соответствуете ли своим целям и ценностям.\n" +
+        "Пройдите тест \u00abПроживаю ли я свою жизнь?\u00bb, чтобы глубже понять, насколько осознанно вы живёте свою жизнь, соответствуете ли своим целям и ценностям.\n" +
         "Ваши ответы помогут выявить сильные стороны и области для личного роста, а также направят вас на путь к более гармоничной и удовлетворённой жизни.\n\n" +
-        "*Готовы начать? Нажмите «Начать» и сделайте первый шаг к самопознанию!*",
+        "*Готовы начать? Нажмите \u00abНачать\u00bb и сделайте первый шаг к самопознанию!*",
         { parse_mode: 'Markdown', ...options }
     );
 }
