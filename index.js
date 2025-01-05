@@ -25,8 +25,6 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
-
 // Переменная для хранения состояния пользователей
 const userState = new Map();
 
