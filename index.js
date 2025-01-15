@@ -1,23 +1,60 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const TelegramBot = require('node-telegram-bot-api');
+const axios = require('axios'); // Для отправки HTTP-запросов
+require('dotenv').config(); // Загрузка переменных окружения из .env
+
+// Вывод переменных окружения для диагностики (НЕ ДЕЛАЙТЕ ЭТО В ПРОДАКШНЕ)
+console.log('TELEGRAM_BOT_TOKEN:', process.env.TELEGRAM_BOT_TOKEN ? '***' : 'Not Set');
+console.log('APP_URL:', process.env.APP_URL);
+console.log('OTHER_BOT_TOKEN:', process.env.OTHER_BOT_TOKEN ? '***' : 'Not Set');
+console.log('OTHER_BOT_CHAT_IDS:', process.env.OTHER_BOT_CHAT_IDS);
+
+// Проверка наличия необходимых переменных окружения
+if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.APP_URL) {
+    console.error("Ошибка: TELEGRAM_BOT_TOKEN и APP_URL должны быть установлены.");
+    process.exit(1);
+}
+
+if (!process.env.OTHER_BOT_TOKEN || !process.env.OTHER_BOT_CHAT_IDS) {
+    console.warn("Предупреждение: OTHER_BOT_TOKEN или OTHER_BOT_CHAT_IDS не установлены. Уведомления не будут отправляться.");
+}
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const appUrl = process.env.APP_URL; // Указать URL приложения на Heroku
+const appUrl = process.env.APP_URL; // URL вашего приложения (например, для Heroku)
 const PORT = process.env.PORT || 3000;
+
+// Токен второго бота, от имени которого будут отправляться уведомления
+const otherBotToken = process.env.OTHER_BOT_TOKEN;
+// Массив chat_id получателей (если переменная не задана, массив будет пустым)
+const otherBotChatIds = process.env.OTHER_BOT_CHAT_IDS
+    ? process.env.OTHER_BOT_CHAT_IDS.split(',').map(id => id.trim())
+    : [];
 
 const app = express();
 const webhookUrl = `${appUrl}/bot${token}`;
 
-// Настройка бота
+// Настройка основного бота с режимом webhook
 const bot = new TelegramBot(token, { webHook: true });
-bot.setWebHook(webhookUrl);
 
-// Middleware для обработки запросов Telegram
+bot.setWebHook(webhookUrl)
+    .then(() => {
+        console.log(`Webhook установлен на ${webhookUrl}`);
+    })
+    .catch(err => {
+        console.error("Ошибка при установке webhook:", err);
+        process.exit(1);
+    });
+
+// Middleware для обработки запросов от Telegram
 app.use(bodyParser.json());
 app.post(`/bot${token}`, (req, res) => {
-    bot.processUpdate(req.body);
-    res.sendStatus(200);
+    bot.processUpdate(req.body)
+        .then(() => res.sendStatus(200))
+        .catch(err => {
+            console.error("Ошибка при обработке обновления:", err);
+            res.sendStatus(500);
+        });
 });
 
 // Запуск сервера
@@ -25,7 +62,7 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
-// Переменная для хранения состояния пользователей
+// Объект для хранения состояния пользователей
 const userState = new Map();
 
 const questions = [
@@ -54,13 +91,17 @@ const questions = [
 // Обработка команды /start
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
+    const username = msg.from.username || msg.from.first_name || 'Неизвестный пользователь';
+    console.log(`Получена команда /start от пользователя ${username} (Chat ID: ${chatId})`);
+    userState.set(chatId, { currentQuestion: 0, answers: [], login: username });
     sendStartTestButton(chatId);
 });
 
-// Автоматический показ кнопки "Начать тест" при добавлении бота
+// Автоматический показ кнопки "Начать тест" при добавлении бота в чат
 bot.on('my_chat_member', (msg) => {
     if (msg.new_chat_member && msg.new_chat_member.status === 'member') {
         const chatId = msg.chat.id;
+        console.log(`Бот добавлен в чат ID: ${chatId}`);
         sendStartTestButton(chatId);
     }
 });
@@ -70,9 +111,7 @@ function sendStartTestButton(chatId) {
     const options = {
         reply_markup: JSON.stringify({
             inline_keyboard: [
-                [
-                    { text: 'Начать тест', callback_data: 'start_test' }
-                ]
+                [{ text: 'Начать тест', callback_data: 'start_test' }]
             ]
         })
     };
@@ -82,34 +121,64 @@ function sendStartTestButton(chatId) {
         "Ваши ответы помогут выявить сильные стороны и области для личного роста, а также направят вас на путь к более гармоничной и удовлетворённой жизни.\n\n" +
         "*Готовы начать? Нажмите \u00abНачать\u00bb и сделайте первый шаг к самопознанию!*",
         { parse_mode: 'Markdown', ...options }
-    );
+    )
+        .then(() => {
+            console.log(`Кнопка "Начать тест" отправлена в чат ID: ${chatId}`);
+        })
+        .catch(err => {
+            console.error(`Ошибка при отправке кнопки "Начать тест" в чат ID ${chatId}:`, err);
+        });
 }
 
-// Обработка начала теста по кнопке
+// Обработка нажатий на inline-кнопки (callback_query)
 bot.on('callback_query', (callbackQuery) => {
     const chatId = callbackQuery.message.chat.id;
     const data = callbackQuery.data;
+    const username = callbackQuery.from.username || callbackQuery.from.first_name || 'Неизвестный пользователь';
+    console.log(`Получен callback_query от ${username} (Chat ID: ${chatId}): ${data}`);
 
     if (data === 'start_test') {
-        userState.set(chatId, { currentQuestion: 0, answers: [] });
-        bot.sendMessage(chatId, "Тест \"Проживаю ли я свою жизнь?\"\nОтвечайте на вопросы, нажимая кнопки \"Да\" или \"Нет\".").then(() => {
-            askNextQuestion(chatId);
-        });
+        // При запуске теста сохраняем login пользователя
+        userState.set(chatId, { currentQuestion: 0, answers: [], login: username });
+        bot.sendMessage(chatId, "Тест \"Проживаю ли я свою жизнь?\"\nОтвечайте на вопросы, нажимая кнопки \"Да\" или \"Нет\".")
+            .then(() => {
+                console.log(`Тест начат для пользователя ${username} (Chat ID: ${chatId})`);
+                askNextQuestion(chatId);
+            })
+            .catch(err => {
+                console.error(`Ошибка при отправке сообщения о начале теста пользователю ${username} (Chat ID: ${chatId}):`, err);
+            });
     } else {
         const state = userState.get(chatId);
-
-        if (!state || state.currentQuestion >= questions.length) {
+        if (!state) {
+            console.warn(`Состояние пользователя не найдено для Chat ID: ${chatId}`);
             return;
         }
 
-        state.answers.push(data === 'yes');
+        if (state.currentQuestion >= questions.length) {
+            console.warn(`Пользователь ${username} (Chat ID: ${chatId}) уже завершил тест.`);
+            return;
+        }
+
+        // Сохраняем ответ: true, если пользователь выбрал "Да"
+        const answer = data === 'yes';
+        state.answers.push(answer);
         state.currentQuestion++;
+
+        console.log(`Пользователь ${username} (Chat ID: ${chatId}) ответил "${answer ? 'Да' : 'Нет'}" на вопрос ${state.currentQuestion}`);
 
         if (state.currentQuestion < questions.length) {
             askNextQuestion(chatId);
         } else {
-            calculateResult(chatId, state.answers);
-            userState.delete(chatId);
+            // Тест завершён
+            calculateResult(chatId, state.answers, state.login)
+                .then(() => {
+                    userState.delete(chatId);
+                    console.log(`Тест завершён для пользователя ${username} (Chat ID: ${chatId})`);
+                })
+                .catch(err => {
+                    console.error(`Ошибка при завершении теста для пользователя ${username} (Chat ID: ${chatId}):`, err);
+                });
         }
     }
 });
@@ -130,11 +199,17 @@ function askNextQuestion(chatId) {
         })
     };
 
-    bot.sendMessage(chatId, `Вопрос ${state.currentQuestion + 1}: ${question}`, options);
+    bot.sendMessage(chatId, `Вопрос ${state.currentQuestion + 1}: ${question}`, options)
+        .then(() => {
+            console.log(`Вопрос ${state.currentQuestion + 1} отправлен в чат ID: ${chatId}`);
+        })
+        .catch(err => {
+            console.error(`Ошибка при отправке вопроса в чат ID ${chatId}:`, err);
+        });
 }
 
-// Подсчёт и отправка результата
-function calculateResult(chatId, answers) {
+// Подсчёт и отправка результата теста, плюс уведомление второму боту о логине пользователя
+async function calculateResult(chatId, answers, login) {
     const yesCount = answers.filter(answer => answer).length;
     let result = "";
 
@@ -148,14 +223,15 @@ function calculateResult(chatId, answers) {
         result = "Вы, возможно, живёте чужими ожиданиями и упускаете возможность реализовать себя.";
     }
 
-    bot.sendMessage(chatId, `Тест завершён!\n${result}`).then(() => {
-        // Отправляем дополнительное сообщение с кнопками
-        bot.sendPhoto(chatId, "https://raw.githubusercontent.com/Freest10/psycho-quiz-telegram/refs/heads/main/public/mosk.jpg", {
+    try {
+        await bot.sendMessage(chatId, `Тест завершён!\n${result}`);
+        console.log(`Результат отправлен пользователю ${login} (Chat ID: ${chatId})`);
+
+        // Отправка дополнительного сообщения с фотографией
+        await bot.sendPhoto(chatId, "https://raw.githubusercontent.com/Freest10/psycho-quiz-telegram/refs/heads/main/public/mosk.jpg", {
             caption: "24 февраля стартует мой авторский интенсив \"Перезагрузка: от апатии к счастью\", и я буду рада видеть вас.\n" +
                 "\n" +
                 "На нем вы сможете полностью выйти из состояния апатии и войдете в новую фазу своей жизни, осознанную и счастливую.\n" +
-                "Хотите с нами в жизнь в радость?\n" +
-                "\n" +
                 "Запись на сайте в лист ожидания дает скидку 15%.",
             reply_markup: {
                 inline_keyboard: [
@@ -163,7 +239,31 @@ function calculateResult(chatId, answers) {
                 ]
             }
         });
-    }).catch(err => {
-        console.error("Ошибка при отправке сообщений:", err);
+        console.log(`Фото отправлено пользователю ${login} (Chat ID: ${chatId})`);
+    } catch (err) {
+        console.error(`Ошибка при отправке результатов пользователю ${login} (Chat ID: ${chatId}):`, err);
+    }
+
+    // Проверка наличия необходимых переменных окружения
+    if (!otherBotToken || otherBotChatIds.length === 0) {
+        console.warn("OTHER_BOT_TOKEN или OTHER_BOT_CHAT_IDS не установлены. Уведомления не будут отправляться.");
+        return;
+    }
+
+    // Отправка уведомлений второму боту по массиву chat_id
+    otherBotChatIds.forEach(async (destChatId) => {
+        try {
+            const response = await axios.post(`https://api.telegram.org/bot${otherBotToken}/sendMessage`, {
+                chat_id: destChatId,
+                text: `Пользователь ${login} прошёл тест.`
+            });
+            console.log(`Уведомление отправлено на ${destChatId}:`, response.data);
+        } catch (error) {
+            if (error.response) {
+                console.error(`Ошибка при отправке уведомления на ${destChatId}:`, error.response.data);
+            } else {
+                console.error(`Ошибка при отправке уведомления на ${destChatId}:`, error.message);
+            }
+        }
     });
 }
