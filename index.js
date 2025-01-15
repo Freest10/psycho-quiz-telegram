@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 // Токен второго бота, от имени которого будут отправляться уведомления, берётся из переменной окружения
 const otherBotToken = process.env.OTHER_BOT_TOKEN;
 // Массив chat_id получателей для уведомлений второго бота, берётся из переменной окружения и разделяется запятыми
-const otherBotChatIds = ["248800587","213551062"];//process.env.OTHER_BOT_CHAT_IDS ? process.env.OTHER_BOT_CHAT_IDS.split(',') : [];
+const otherBotChatIds = process.env.OTHER_BOT_CHAT_IDS ? process.env.OTHER_BOT_CHAT_IDS.split(',') : [];
 
 const app = express();
 const webhookUrl = `${appUrl}/bot${token}`;
@@ -62,7 +62,7 @@ const questions = [
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
     // Сохраняем логин (username) пользователя, если он есть
-    userState.set(chatId, { currentQuestion: 0, answers: [], login: msg.from.username || msg.from.first_name });
+    userState.set(chatId, { currentQuestion: 0, answers: [], login: msg.from ? (msg.from.username || msg.from.first_name) : '' });
     sendStartTestButton(chatId);
 });
 
@@ -101,7 +101,7 @@ bot.on('callback_query', (callbackQuery) => {
 
     if (data === 'start_test') {
         // При запуске теста сохраняем логин, если вдруг его не было
-        userState.set(chatId, { currentQuestion: 0, answers: [], login: callbackQuery.from.username || callbackQuery.from.first_name });
+        userState.set(chatId, { currentQuestion: 0, answers: [], login: userState.has(chatId) ? userState.get(chatId).login : '' });
         bot.sendMessage(chatId, "Тест \"Проживаю ли я свою жизнь?\"\nОтвечайте на вопросы, нажимая кнопки \"Да\" или \"Нет\".")
             .then(() => {
                 askNextQuestion(chatId);
