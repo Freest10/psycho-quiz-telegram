@@ -2,8 +2,19 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const TelegramBot = require('node-telegram-bot-api');
 
+// Подключаем firebase-admin и инициализируем его
+const admin = require('firebase-admin');
+const serviceAccount = JSON.parse(process.env.FIREBASE_SECRET);
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+
+// Получаем ссылку на Firestore
+const db = admin.firestore();
+
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const appUrl = process.env.APP_URL; // Указать URL приложения на Heroku
+const appUrl = process.env.APP_URL; // URL вашего приложения (например, для Heroku)
 const PORT = process.env.PORT || 3000;
 
 const app = express();
@@ -25,7 +36,7 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
-// Переменная для хранения состояния пользователей
+// Объект для хранения состояния пользователей
 const userState = new Map();
 
 const questions = [
@@ -51,13 +62,29 @@ const questions = [
     "Вы ощущаете, что живёте именно так, как хотите?"
 ];
 
+// Функция для сохранения логина пользователя в Firestore
+async function saveUserLogin(login) {
+    try {
+        // Добавляем новый документ в коллекцию users_logins
+        await db.collection('users_logins').add({
+            login,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        console.log(`Логин ${login} успешно сохранён в базе данных Firebase.`);
+    } catch (err) {
+        console.error("Ошибка при сохранении логина в Firebase:", err);
+    }
+}
+
 // Обработка команды /start
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
+    const login = msg.from.username || msg.from.first_name || 'unknown';
+    userState.set(chatId, { currentQuestion: 0, answers: [], login });
     sendStartTestButton(chatId);
 });
 
-// Автоматический показ кнопки "Начать тест" при добавлении бота
+// Автоматический показ кнопки "Начать тест" при добавлении бота в чат
 bot.on('my_chat_member', (msg) => {
     if (msg.new_chat_member && msg.new_chat_member.status === 'member') {
         const chatId = msg.chat.id;
@@ -70,9 +97,7 @@ function sendStartTestButton(chatId) {
     const options = {
         reply_markup: JSON.stringify({
             inline_keyboard: [
-                [
-                    { text: 'Начать тест', callback_data: 'start_test' }
-                ]
+                [{ text: 'Начать тест', callback_data: 'start_test' }]
             ]
         })
     };
@@ -85,19 +110,20 @@ function sendStartTestButton(chatId) {
     );
 }
 
-// Обработка начала теста по кнопке
+// Обработка нажатий на inline-кнопки (callback_query)
 bot.on('callback_query', (callbackQuery) => {
     const chatId = callbackQuery.message.chat.id;
     const data = callbackQuery.data;
 
     if (data === 'start_test') {
-        userState.set(chatId, { currentQuestion: 0, answers: [] });
-        bot.sendMessage(chatId, "Тест \"Проживаю ли я свою жизнь?\"\nОтвечайте на вопросы, нажимая кнопки \"Да\" или \"Нет\".").then(() => {
-            askNextQuestion(chatId);
-        });
+        const login = callbackQuery.from.username || callbackQuery.from.first_name || 'unknown';
+        userState.set(chatId, { currentQuestion: 0, answers: [], login });
+        bot.sendMessage(chatId, "Тест \"Проживаю ли я свою жизнь?\"\nОтвечайте на вопросы, нажимая кнопки \"Да\" или \"Нет\".")
+            .then(() => {
+                askNextQuestion(chatId);
+            });
     } else {
         const state = userState.get(chatId);
-
         if (!state || state.currentQuestion >= questions.length) {
             return;
         }
@@ -108,7 +134,7 @@ bot.on('callback_query', (callbackQuery) => {
         if (state.currentQuestion < questions.length) {
             askNextQuestion(chatId);
         } else {
-            calculateResult(chatId, state.answers);
+            calculateResult(chatId, state.answers, state.login);
             userState.delete(chatId);
         }
     }
@@ -133,8 +159,8 @@ function askNextQuestion(chatId) {
     bot.sendMessage(chatId, `Вопрос ${state.currentQuestion + 1}: ${question}`, options);
 }
 
-// Подсчёт и отправка результата
-function calculateResult(chatId, answers) {
+// Подсчёт и отправка результата теста, плюс сохранение логина пользователя в базу Firebase
+function calculateResult(chatId, answers, login) {
     const yesCount = answers.filter(answer => answer).length;
     let result = "";
 
@@ -148,22 +174,26 @@ function calculateResult(chatId, answers) {
         result = "Вы, возможно, живёте чужими ожиданиями и упускаете возможность реализовать себя.";
     }
 
-    bot.sendMessage(chatId, `Тест завершён!\n${result}`).then(() => {
-        // Отправляем дополнительное сообщение с кнопками
-        bot.sendPhoto(chatId, "https://raw.githubusercontent.com/Freest10/psycho-quiz-telegram/refs/heads/main/public/mosk.jpg", {
-            caption: "24 февраля стартует мой авторский интенсив \"Перезагрузка: от апатии к счастью\", и я буду рада видеть вас.\n" +
-                "\n" +
-                "На нем вы сможете полностью выйти из состояния апатии и войдете в новую фазу своей жизни, осознанную и счастливую.\n" +
-                "Хотите с нами в жизнь в радость?\n" +
-                "\n" +
-                "Запись на сайте в лист ожидания дает скидку 15%.",
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: "Перейти на сайт", url: "https://annamoskpsy.tilda.ws/" }]
-                ]
-            }
+    bot.sendMessage(chatId, `Тест завершён!\n${result}`)
+        .then(() => {
+            // Отправка дополнительного сообщения с фотографией
+            return bot.sendPhoto(chatId, "https://raw.githubusercontent.com/Freest10/psycho-quiz-telegram/refs/heads/main/public/mosk.jpg", {
+                caption: "24 февраля стартует мой авторский интенсив \"Перезагрузка: от апатии к счастью\", и я буду рада видеть вас.\n" +
+                    "\n" +
+                    "На нем вы сможете полностью выйти из состояния апатии и войдете в новую фазу своей жизни, осознанную и счастливую.\n" +
+                    "Запись на сайте в лист ожидания дает скидку 15%.",
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: "Перейти на сайт", url: "https://annamoskpsy.tilda.ws/" }]
+                    ]
+                }
+            });
+        })
+        .catch(err => {
+            console.error("Ошибка при отправке сообщений пользователю:", err);
+        })
+        .finally(() => {
+            // Сохраняем логин пользователя в Firebase
+            saveUserLogin(login);
         });
-    }).catch(err => {
-        console.error("Ошибка при отправке сообщений:", err);
-    });
 }
