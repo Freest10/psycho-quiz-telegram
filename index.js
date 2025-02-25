@@ -177,17 +177,16 @@ function calculateResult(chatId, answers, login) {
     bot.sendMessage(chatId, `Тест завершён!\n${result}`)
         .then(() => {
             // Отправка дополнительного сообщения с фотографией
-            return bot.sendPhoto(chatId, "https://raw.githubusercontent.com/Freest10/psycho-quiz-telegram/refs/heads/main/public/mosk.jpg", {
-                caption: "24 февраля стартует мой авторский интенсив \"Перезагрузка: от апатии к счастью\", и я буду рада видеть вас.\n" +
-                    "\n" +
-                    "На нем вы сможете полностью выйти из состояния апатии и войдете в новую фазу своей жизни, осознанную и счастливую.\n" +
-                    "Запись на сайте в лист ожидания дает скидку 15%.",
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: "Перейти на сайт", url: "https://annamoskpsy.tilda.ws/" }]
-                    ]
+            return bot.sendMessage(chatId,
+                "А как добиться успехов в любом деле смотри в моем видео",
+                {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: "Переходи", url: "https://youtu.be/qiEBnrSkHcE?si=LXsdGoHaufrONAD2" }]
+                        ]
+                    }
                 }
-            });
+            );
         })
         .catch(err => {
             console.error("Ошибка при отправке сообщений пользователю:", err);
