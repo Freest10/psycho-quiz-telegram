@@ -178,11 +178,15 @@ function calculateResult(chatId, answers, login) {
         .then(() => {
             // Отправка дополнительного сообщения с фотографией
             return bot.sendMessage(chatId,
-                "А как добиться успехов в любом деле смотри в моем видео",
+                "А как добиться успехов в любом деле смотри в моем видео\n\n" +
+                "Переходи 👉 [Смотреть видео](https://youtu.be/qiEBnrSkHcE?si=LXsdGoHaufrONAD2)\n\n" +
+                "Заходи в канал, тут много пользы 👉 [Присоединиться](https://t.me/annamoskgroup)",
                 {
+                    parse_mode: "Markdown",
                     reply_markup: {
                         inline_keyboard: [
-                            [{ text: "Переходи", url: "https://youtu.be/qiEBnrSkHcE?si=LXsdGoHaufrONAD2" }]
+                            [{ text: "📹 Смотреть видео", url: "https://youtu.be/qiEBnrSkHcE?si=LXsdGoHaufrONAD2" }],
+                            [{ text: "📢 Присоединиться к каналу", url: "https://t.me/annamoskgroup" }]
                         ]
                     }
                 }
